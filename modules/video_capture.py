@@ -8,6 +8,10 @@ import threading
 if platform.system() == "Windows":
     from pygrabber.dshow_graph import FilterGraph
 
+# Import macOS camera fix for permission handling
+if platform.system() == "Darwin":
+    from modules.macos_camera_fix import safe_camera_open
+
 
 class VideoCapturer:
     def __init__(self, device_index: int):
@@ -48,8 +52,12 @@ class VideoCapturer:
                         self.cap.release()
                     except Exception:
                         continue
+            elif platform.system() == "Darwin":
+                # macOS-specific capture method with permission handling
+                # Use the safe camera opener to handle permission dialogs properly
+                self.cap = safe_camera_open(self.device_index)
             else:
-                # Unix-like systems (Linux/Mac) capture method
+                # Linux and other Unix-like systems
                 self.cap = cv2.VideoCapture(self.device_index)
 
             if not self.cap or not self.cap.isOpened():

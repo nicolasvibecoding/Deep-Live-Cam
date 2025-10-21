@@ -33,6 +33,9 @@ import platform
 if platform.system() == "Windows":
     from pygrabber.dshow_graph import FilterGraph
 
+if platform.system() == "Darwin":
+    from modules.macos_camera_fix import safe_camera_open
+
 ROOT = None
 POPUP = None
 POPUP_LIVE = None
@@ -903,19 +906,23 @@ def get_available_cameras():
         camera_names = []
 
         if platform.system() == "Darwin":  # macOS specific handling
-            # Try to open the default FaceTime camera first
-            cap = cv2.VideoCapture(0)
-            if cap.isOpened():
-                camera_indices.append(0)
-                camera_names.append("FaceTime Camera")
-                cap.release()
-
-            # On macOS, additional cameras typically use indices 1 and 2
-            for i in [1, 2]:
-                cap = cv2.VideoCapture(i)
-                if cap.isOpened():
-                    camera_indices.append(i)
-                    camera_names.append(f"Camera {i}")
+            # Test camera indices 0-2 for macOS
+            # Important: We need to test if we can actually READ frames, not just open
+            for i in range(3):
+                cap = safe_camera_open(i)
+                if cap is not None and cap.isOpened():
+                    # Test if we can actually read a frame
+                    ret, frame = cap.read()
+                    if ret and frame is not None:
+                        # This camera actually works!
+                        camera_indices.append(i)
+                        # Use descriptive names
+                        if i == 0:
+                            camera_names.append("Camera 0")
+                        elif i == 1:
+                            camera_names.append("FaceTime Camera")
+                        else:
+                            camera_names.append(f"Camera {i}")
                     cap.release()
         else:
             # Linux camera detection - test first 10 indices
